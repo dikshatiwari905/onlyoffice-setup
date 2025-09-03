@@ -1,0 +1,125 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>ONLYOFFICE Quick Test</title>
+  <script src="http://localhost:8080/web-apps/apps/api/documents/api.js"></script>
+  <style>
+    html, body {
+      height:100%;
+      margin:0;
+      padding:0;
+      font-family: sans-serif;
+    }
+    #topbar {
+      padding: 10px;
+      background: #f4f4f4;
+      border-bottom: 1px solid #ccc;
+    }
+    #fileSelect {
+      padding: 5px 10px;
+      font-size: 14px;
+    }
+    #placeholder {
+      height: calc(100vh - 50px); /* leave space for dropdown */
+      width:100%;
+      border:1px solid #ccc;
+    }
+    h1{
+      font-size: 32px;
+      color: red;
+      margin: 0;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>OnlyOffice</h1>
+  <div id="topbar">
+    <label for="fileSelect">Choose file: </label>
+    <select id="fileSelect"></select>
+  </div>
+  <div id="placeholder"></div>
+
+  <script>
+    async function loadFiles() {
+      const res = await fetch("http://host.docker.internal:3000/files"); // backend serves list of files
+      const files = await res.json();
+
+      const select = document.getElementById("fileSelect");
+      select.innerHTML = files.map(f => `<option value="${f}">${f}</option>`).join("");
+
+      // Check for ?file=filename in URL and auto-select
+      const params = new URLSearchParams(window.location.search);
+      const queryFile = params.get("file");
+      const initialFile = queryFile && files.includes(queryFile) ? queryFile : files[0];
+
+      if (initialFile) openEditor(initialFile);
+      select.value = initialFile;
+
+      select.addEventListener("change", e => openEditor(e.target.value));
+    }
+
+    let docEditor;
+    function openEditor(fileName) {
+      if (docEditor) docEditor.destroyEditor();
+
+      docEditor = new DocsAPI.DocEditor("placeholder", {
+        width: "100%",
+        height: "100%",
+        type: "desktop",
+        documentType: "word",
+        document: {
+          title: fileName,
+          url: `http://host.docker.internal:3000/file/${fileName}`, // fetch file from backend
+          fileType: "docx",
+          key: fileName + "-" + Date.now()
+        },
+        editorConfig: {
+          mode: "edit",
+          lang: "en",
+          callbackUrl: "http://host.docker.internal:3000/save"
+        }
+      });
+    }
+
+    loadFiles();
+    
+  </script>
+</body>
+</html>
+
+
+
+<!-- <!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>ONLYOFFICE Quick Test</title>
+  <script src="http://localhost:8085/web-apps/apps/api/documents/api.js"></script>
+  <style>html,body,#placeholder{height:100%;margin:0;padding:0}</style>
+</head>
+<body>
+  <div id="placeholder" style="width:100%; height:100vh;"></div>
+
+  <script>
+    const docEditor = new DocsAPI.DocEditor("placeholder", {
+      width: "100%",
+      height: "100%",
+      type: "desktop",
+      documentType: "word",
+      document: {
+        title: "example.docx",
+        url: "http://localhost:3000/example.docx",   // backend for browser/editor
+        fileType: "docx",
+        key: "example-doc-1"
+      },
+      editorConfig: {
+        mode: "edit",
+        lang: "en",
+        callbackUrl: "http://host.docker.internal:3000/save"  // backend for ONLYOFFICE container
+      }
+    });
+  </script>
+</body>
+</html> -->

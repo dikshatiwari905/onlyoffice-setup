@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  onlyoffice-document-server:
+    image: onlyoffice/documentserver:latest
+    container_name: onlyoffice-document-server
+    restart: always
+    ports:
+      - "8080:80"  # OnlyOffice API available on localhost:8080
+    environment:
+      - JWT_ENABLED=false
+
+  node-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: onlyoffice-backend
+    restart: always
+    ports:
+      - "3000:3000"  # Backend available on localhost:3000
+    volumes:
+      - ./public:/usr/src/app/public    
+      - ./saved:/usr/src/app/saved     
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - onlyoffice-document-server
