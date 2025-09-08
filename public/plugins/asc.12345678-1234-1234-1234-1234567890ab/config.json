@@ -1,0 +1,42 @@
+{
+    "name"       : "hello world",
+    "guid"       : "asc.12345678-1234-1234-1234-1234567890ab",
+    "baseUrl"    : "",
+    "variations" : [
+        {
+            "description"         : "hello world",
+            "url"                 : "index.html",
+            "icons"               : "icon.png", 
+            "isViewer"            : false,
+            "EditorsSupport"      : ["word"],
+            "isVisual"            : false,
+            "isModal"             : true,
+            "isInsideMode"        : false,
+            "initDataType"        : "none",
+            "initData"            : "",
+            "isUpdateOleOnResize" : true,
+            "buttons"             : []
+        },
+        {
+            "description"         : "About",
+            "url"                 : "index_about.html",
+            "icons"               : "icon.png", 
+            "isViewer"            : false,
+            "EditorsSupport"      : ["word"],
+            "isVisual"            : true,
+            "isModal"             : true,
+            "isInsideMode"        : false,
+            "initDataType"        : "none",
+            "initData"            : "",
+            "isUpdateOleOnResize" : true,
+            "buttons"         : [
+                {
+                    "text": "Ok",
+                    "primary": true
+                }
+            ],
+
+            "size" : [392, 147]
+        }
+    ]
+}

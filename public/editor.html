@@ -1,4 +1,571 @@
+<!-- ui updation -->
 <!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Platform Demo - OnlyOffice Integration</title>
+  <script src="http://localhost:8080/web-apps/apps/api/documents/api.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Roboto, sans-serif;
+      background: #f4f6f9;
+      color: #333;
+    }
+
+    /* Top navigation */
+    .navbar {
+      height: 50px;
+      background: #007bff;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .navbar h1 {
+      font-size: 18px;
+      margin: 0;
+    }
+    .navbar .user {
+      font-size: 14px;
+    }
+
+    /* Layout with sidebar */
+    .layout {
+      display: flex;
+      height: calc(100vh - 50px);
+    }
+    .sidebar {
+      width: 200px;
+      background: #fff;
+      border-right: 1px solid #ddd;
+      padding: 15px;
+    }
+    .sidebar h2 {
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: #666;
+    }
+    .sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .sidebar li {
+      padding: 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .sidebar li:hover {
+      background: #f0f0f0;
+    }
+
+    /* Main content */
+    .content {
+      flex: 1;
+      padding: 20px;
+      overflow: auto;
+    }
+
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .card-header h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+    .card-header select {
+      padding: 5px 10px;
+      font-size: 14px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 5px;
+      color: #555;
+    }
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 8px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .editor-box {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      overflow: hidden;
+      width: 100%;
+      height: 500px;
+    }
+    #placeholder {
+      width: 100%;
+      height: 100%;
+    }
+
+    .actions {
+      margin-top: 15px;
+      text-align: right;
+    }
+    .btn {
+      padding: 6px 12px;
+      font-size: 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background: #007bff;
+      color: white;
+      transition: background 0.2s;
+    }
+    .btn:hover {
+      background: #0056b3;
+    }
+    .editor-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #fff;
+  z-index: 9999;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.editor-fullscreen #placeholder {
+  width: 100%;
+  height: 100%;
+}
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <h1>DocDesk</h1>
+    <div class="user">Welcome, User</div>
+  </div>
+
+  <div class="layout">
+    <div class="sidebar">
+      <h2>Navigation</h2>
+      <ul>
+        <li>Dashboard</li>
+        <li class="active">Documents</li>
+        <li>Reports</li>
+        <li>Settings</li>
+      </ul>
+    </div>
+
+    <div class="content">
+      <!-- Metadata form -->
+      <div class="card">
+        <h3>Document Information</h3>
+        <div class="form-group">
+          <label for="docTitle">Title</label>
+          <input type="text" id="docTitle" placeholder="Enter document title">
+        </div>
+        <div class="form-group">
+          <label for="docDesc">Description</label>
+          <textarea id="docDesc" placeholder="Enter description"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="docTags">Tags</label>
+          <input type="text" id="docTags" placeholder="e.g. proposal, internal, draft">
+        </div>
+        <div class="actions">
+          <button class="btn">Save Info</button>
+        </div>
+      </div>
+
+      <!-- Editor -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Document Editor</h3>
+          <select id="fileSelect"></select>
+        </div>
+
+        <div class="editor-box">
+          <div id="placeholder"></div>
+        </div>
+
+        <div class="actions">
+          <button id="toggleExpand" class="btn">Expand</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const browserBase = "http://localhost:3000";
+    const containerBase = "http://host.docker.internal:3000";
+
+    async function loadFiles() {
+      const res = await fetch(`${browserBase}/files`);
+      const files = await res.json();
+      const select = document.getElementById("fileSelect");
+      select.innerHTML = files.map(f => `<option value="${f}">${f}</option>`).join("");
+      const file = files[0];
+      openEditor(file);
+      select.addEventListener("change", e => openEditor(e.target.value));
+    }
+
+    let docEditor;
+    function openEditor(fileName) {
+      if (docEditor) docEditor.destroyEditor();
+      docEditor = new DocsAPI.DocEditor("placeholder", {
+        documentType: "word",
+        type: "desktop",
+        document: {
+          title: fileName,
+          url: `${containerBase}/file/${fileName}`,
+          fileType: "docx",
+          key: fileName + "-" + Date.now()
+        },
+        editorConfig: {
+          mode: "edit",
+          callbackUrl: `${containerBase}/save`,
+          plugins: {
+            autoload: [
+              `${containerBase}/plugins/asc.12345678-1234-1234-1234-1234567890ab/config.json`
+            ]
+          }
+        }
+      });
+    }
+
+    document.getElementById("toggleExpand").addEventListener("click", () => {
+      const box = document.querySelector(".editor-box");
+      if (box.style.height === "500px") {
+        box.style.height = "100vh";
+        toggleExpand.textContent = "Collapse";
+      } else {
+        box.style.height = "500px";
+        toggleExpand.textContent = "Expand";
+      }
+    });
+
+    loadFiles();
+  </script>
+</body>
+</html>
+
+
+<!-- <!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>ONLYOFFICE Quick Test with Plugins</title>
+  <script src="http://localhost:8080/web-apps/apps/api/documents/api.js"></script>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      background: #f9f9f9;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    #topbar {
+      padding: 10px 15px;
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #fileSelect {
+      padding: 6px 10px;
+      font-size: 14px;
+    }
+
+    .editor-wrapper {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 10px;
+      transition: all 0.3s ease;
+    }
+
+    .editor-box {
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      width: 800px;
+      height: 400px; /* default compact mode */
+      transition: height 0.3s ease, width 0.3s ease;
+    }
+
+    .editor-box.expanded {
+      width: 100%;
+      height: calc(100vh - 60px); /* full height minus topbar */
+    }
+
+    #placeholder {
+      width: 100%;
+      height: 100%;
+    }
+
+    .actions {
+      margin-left: auto;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      font-size: 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background: #007bff;
+      color: white;
+      transition: background 0.2s;
+    }
+
+    .btn:hover {
+      background: #0056b3;
+    }
+
+    h1 {
+      font-size: 20px;
+      color: #333;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="topbar">
+      <h1>OnlyOffice Editor</h1>
+      <div>
+        <label for="fileSelect">Choose file: </label>
+        <select id="fileSelect"></select>
+      </div>
+      <div class="actions">
+        <button id="toggleExpand" class="btn">Expand</button>
+      </div>
+    </div>
+
+    <div class="editor-wrapper">
+      <div id="editorBox" class="editor-box">
+        <div id="placeholder"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Backend URLs
+    const browserBase = "http://localhost:3000";              // for browser fetch
+    const containerBase = "http://host.docker.internal:3000"; // for OnlyOffice container
+
+    async function loadFiles() {
+      try {
+        const res = await fetch(`${browserBase}/files`);
+        if (!res.ok) throw new Error("Failed to fetch files");
+        const files = await res.json();
+
+        const select = document.getElementById("fileSelect");
+        select.innerHTML = files.map(f => `<option value="${f}">${f}</option>`).join("");
+
+        const params = new URLSearchParams(window.location.search);
+        const queryFile = params.get("file");
+        const initialFile = queryFile && files.includes(queryFile) ? queryFile : files[0];
+
+        if (initialFile) openEditor(initialFile);
+        select.value = initialFile;
+
+        select.addEventListener("change", e => openEditor(e.target.value));
+      } catch (err) {
+        console.error("Error loading files:", err);
+      }
+    }
+
+    let docEditor;
+    function openEditor(fileName) {
+      if (docEditor) docEditor.destroyEditor();
+
+      docEditor = new DocsAPI.DocEditor("placeholder", {
+        width: "100%",
+        height: "100%",
+        type: "desktop",
+        documentType: "word",
+        document: {
+          title: fileName,
+          url: `${containerBase}/file/${fileName}`,   // container can reach this
+          fileType: "docx",
+          key: fileName + "-" + Date.now()
+        },
+        editorConfig: {
+          mode: "edit",
+          lang: "en",
+          callbackUrl: `${containerBase}/save`,       // container saves here
+          plugins: {
+            autoload: [
+              `${containerBase}/plugins/asc.12345678-1234-1234-1234-1234567890ab/config.json`
+            ]
+          }
+        }
+      });
+    }
+
+    // Expand / Collapse
+    const toggleBtn = document.getElementById("toggleExpand");
+    const editorBox = document.getElementById("editorBox");
+    toggleBtn.addEventListener("click", () => {
+      editorBox.classList.toggle("expanded");
+      toggleBtn.textContent = editorBox.classList.contains("expanded")
+        ? "Collapse"
+        : "Expand";
+    });
+
+    loadFiles();
+  </script>
+</body>
+</html> -->
+
+
+
+<!-- working one -->
+<!-- <!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>ONLYOFFICE Quick Test with Plugins</title>
+  <script src="http://localhost:8080/web-apps/apps/api/documents/api.js"></script>
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+    }
+
+    #topbar {
+      padding: 10px;
+      background: #f4f4f4;
+      border-bottom: 1px solid #ccc;
+    }
+
+    #fileSelect {
+      padding: 5px 10px;
+      font-size: 14px;
+    }
+
+    #placeholder {
+      height: calc(100vh - 50px);
+      width: 100%;
+      border: 1px solid #ccc;
+    }
+
+    h1 {
+      font-size: 32px;
+      color: red;
+      margin: 0;
+      padding: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>OnlyOffice</h1>
+  <div id="topbar">
+    <label for="fileSelect">Choose file: </label>
+    <select id="fileSelect"></select>
+  </div>
+  <div id="placeholder"></div>
+
+  <script>
+    async function loadFiles() {
+      const res = await fetch("http://host.docker.internal:3000/files"); // backend serves list of files
+      const files = await res.json();
+
+      const select = document.getElementById("fileSelect");
+      select.innerHTML = files.map(f => `<option value="${f}">${f}</option>`).join("");
+
+      const params = new URLSearchParams(window.location.search);
+      const queryFile = params.get("file");
+      const initialFile = queryFile && files.includes(queryFile) ? queryFile : files[0];
+
+      if (initialFile) openEditor(initialFile);
+      select.value = initialFile;
+
+      select.addEventListener("change", e => openEditor(e.target.value));
+    }
+
+    let docEditor;
+    function openEditor(fileName) {
+      if (docEditor) docEditor.destroyEditor();
+
+      docEditor = new DocsAPI.DocEditor("placeholder", {
+        width: "100%",
+        height: "100%",
+        type: "desktop",
+        documentType: "word",
+        document: {
+          title: fileName,
+          url: `http://host.docker.internal:3000/file/${fileName}`, 
+          fileType: "docx",
+          key: fileName + "-" + Date.now()
+        },
+        editorConfig: {
+          mode: "edit",
+          lang: "en",
+          callbackUrl: "http://host.docker.internal:3000/save",
+          plugins: {
+    autoload: [
+        "http://host.docker.internal:3000/plugins/hello-world/config.json"
+    ]
+}
+        }
+      });
+    }
+
+    loadFiles();
+  </script>
+</body>
+
+</html> -->
+
+
+
+
+<!-- <!doctype html>
 <html>
 <head>
   <meta charset="utf-8"/>
@@ -87,7 +654,7 @@
     
   </script>
 </body>
-</html>
+</html> -->
 
 
 

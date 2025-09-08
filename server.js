@@ -18,6 +18,10 @@ if (!fs.existsSync(saveDir)) fs.mkdirSync(saveDir);
 // Serve static frontend (editor.html etc.)
 app.use(express.static(path.join(__dirname, "public")));
 
+// Serve plugins
+app.use("/plugins", express.static(path.join(__dirname, "plugins")));
+
+
 /**
  * Get list of available .docx files in public/files
  */
