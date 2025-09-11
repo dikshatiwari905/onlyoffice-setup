@@ -54,30 +54,65 @@ app.get("/file/:filename", (req, res) => {
  * Save callback from ONLYOFFICE
  */
 app.post("/save", async (req, res) => {
+   console.log("Raw callback::::>>>", JSON.stringify(req.body, null, 2));
   try {
-    console.log("📥 Callback received:", req.body);
+    console.log("Callback received:", req.body);
 
-    if (req.body.status === 2 && req.body.url) {
-      const downloadUrl = req.body.url;
+    if ((req.body.status === 2 || req.body.status === 4 ) && req.body.url) {
+      // Fix download URL for Docker environment
+      let downloadUrl = req.body.url;
+
+      // OnlyOffice cache URL often uses 'localhost', which won't work inside Docker
+      downloadUrl = downloadUrl.replace("localhost", "host.docker.internal");
+
+      // Clean and safe filename
       const filename = (req.body.key || "edited.docx").replace(/[^a-zA-Z0-9._-]/g, "");
       const filePath = path.join(saveDir, filename);
 
+      console.log("➡ Downloading edited file from:", downloadUrl);
+
+      // Fetch the file as arraybuffer
       const response = await axios.get(downloadUrl, { responseType: "arraybuffer" });
+
+      // Save locally
       fs.writeFileSync(filePath, response.data);
 
-      console.log("✅ Edited file saved:", filePath);
+      console.log("Edited file saved successfully:", filePath);
     }
 
+    // Always respond 200 to OnlyOffice
     res.json({ error: 0 });
   } catch (error) {
-    console.error("❌ Save error:", error.message);
-    res.status(500).json({ error: 1 });
+    console.error("Save error:", error.message);
+    res.status(500).json({ error: 1, message: error.message });
   }
 });
 
+// app.post("/save", async (req, res) => {
+//   try {
+//     console.log("📥 Callback received:", req.body);
+
+//     if (req.body.status === 2 && req.body.url) {
+//       const downloadUrl = req.body.url;
+//       const filename = (req.body.key || "edited.docx").replace(/[^a-zA-Z0-9._-]/g, "");
+//       const filePath = path.join(saveDir, filename);
+
+//       const response = await axios.get(downloadUrl, { responseType: "arraybuffer" });
+//       fs.writeFileSync(filePath, response.data);
+
+//       console.log("✅ Edited file saved:", filePath);
+//     }
+
+//     res.json({ error: 0 });
+//   } catch (error) {
+//     console.error("❌ Save error:", error.message);
+//     res.status(500).json({ error: 1 });
+//   }
+// });
+
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Backend running at http://localhost:${PORT}`);
-  console.log(`➡ Open http://localhost:${PORT}/editor.html?file=example.docx`);
+  console.log(`!!!!!Backend running at http://localhost:${PORT}`);
+  console.log(`!!!!Open http://localhost:${PORT}/editor.html?file=example.docx`);
 });
 
 
